@@ -1,0 +1,196 @@
+import os
+import csv
+import pandas as pd
+from pythainlp.tokenize import word_tokenize
+import sys
+
+os.chdir("/Users/14829/Desktop")
+
+# read list of positive, negative and swear words
+positive = pd.read_csv('positive_words.csv', sep=',') 
+negative = pd.read_csv('negative_words.csv', sep=',') 
+swear = pd.read_csv('swear_words.csv', sep=',')
+
+positive = positive.rename(columns={'กตเวที':'words', 'Unnamed: 1':'NAs'})
+positive_list = []
+for word in positive['words']:
+    if word not in positive_list:
+        positive_list.append(word)
+positive_list.extend(['จริงใจ','ครับ','ค่ะ','คะ','คับ','รบกวน','นะคะ'])
+
+
+
+negative = negative.rename(columns={'กระจุกกระจิก':'words', 'Unnamed: 1':'NAs'})  
+negative_list = []
+for word in negative['words']:
+    if word not in negative_list:
+        negative_list.append(word)
+    
+swear = swear.rename(columns={'เหี้ย':'words', 'Unnamed: 1':'NAs'})
+for word in swear['words']:
+    if word not in negative_list:
+        negative_list.append(word)
+negative_list.extend(['ยัง','เหี้ย','ไม่','นาน','ไม่ได้','ปัญหา','จ้ง','ไม่เป็นธรรม','ยุติธรรม','เรียกร้อง','เกือบ','ขี้หน้า','ว้อย','กาก',
+                      'ไม่เอา','โกรธ','น่ารำคาญ','อีดอก','ไม่เห็น','เร','บาย','สัส','พอแล้ว','กู','หลอก','หาย','ชำรุด','ตั้งแต่','ไมไ่ด้','ทำไม'])
+
+
+
+from pandas import DataFrame
+import pandas as pd
+import csv
+import os
+import numpy as np
+
+np.random.seed(500)
+
+os.chdir("/Users/14829/Desktop")
+df = pd.read_csv('bangchak_n_knorr_final.csv', sep=',') 
+
+
+df = pd.DataFrame(df)
+df = df[:4000] 
+df['labels'] = df['labels'].map({1:'pos',0: 'neg'})
+
+
+
+text = [list(word_tokenize(sentence,engine='newmm')) for sentence in df.messages]
+
+filtered_sentences = []
+for sentence in text:
+    if len(sentence) > 0:
+        filtered_sentences.append(sentence)
+
+messages1 = []
+for sentence in filtered_sentences:
+    messages1.append(''.join(sentence))
+    
+filtered_sentence = filtered_sentences[:1000]  
+
+
+messages1 = pd.DataFrame(messages1)
+print(df.labels)
+
+
+
+
+label = []
+def sentiment(text):
+    for sentence in text:
+        
+        positive_count = 0
+        for word in positive_list:
+            for token in sentence:
+                if token == word:
+                    positive_count += 1
+            
+
+        negative_count = 0
+
+        for word in negative_list:
+            for token in sentence:
+                if token == word:
+                    negative_count += 1
+        
+        word_count = 0 
+        for word in sentence:
+            word_count += 1
+            
+        neutral_count = word_count - positive_count - negative_count
+        neutral_value = neutral_count*0.3
+
+        if negative_count > positive_count:
+            if 'ไม่' and 'ทิ้ง' and 'แถว' in sentence:
+                label.append("pos")
+            elif negative_count > neutral_value:
+                label.append("neg")
+            else:
+                label.append("pos")
+        if positive_count > negative_count:
+            if positive_count > neutral_value:
+                label.append("pos")
+            else:
+                label.append("pos")
+        if positive_count == negative_count:
+            if "ไม่" and "ชอบ" in sentence:
+                label.append("neg")
+            elif "ไม่" and "สะดวก" in sentence:
+                label.append("neg")
+            else:
+                label.append("pos")
+
+sentiment(filtered_sentence)
+
+label = pd.DataFrame(label)
+
+messages1 = pd.DataFrame(df.messages)
+
+frames = [messages1, label, df.labels]
+final_df = pd.concat(frames, axis=1, ignore_index=True)
+final_df = final_df.rename(columns={0:'messages', 1: 'predicted', 2:'actual'}) 
+
+print(final_df[160:200])
+
+count = 0
+for index, row in final_df.iterrows():
+    if row['actual'] != row['predicted']:
+        count += 1
+
+print("accuracy is:", (500-count)/500) 
+
+
+#-----------------------------------------------------------------------------------------------------------------------------
+# predict label for typed input
+
+
+text = input("Type something in Thai:")
+
+tokens = word_tokenize(text)
+print("Your tokenized text is:")
+print(tokens)
+
+        
+positive_count = 0
+for word in positive_list:
+    for token in tokens:
+        if token == word:
+            print("pos:",token)
+            positive_count += 1
+            
+
+negative_count = 0
+
+for word in negative_list:
+    for token in tokens:
+        if token == word:
+            print("neg:",token)
+            negative_count += 1
+            
+word_count = 0 
+
+for word in text:
+    word_count += 1
+            
+neutral_count = word_count - positive_count - negative_count
+neutral_value = neutral_count*0.3
+
+if negative_count > positive_count:
+    elif negative_count > neutral_value:
+        print("final answer: neg")
+    else:
+        print("final answer: pos")
+if positive_count > negative_count:
+    if positive_count > neutral_value:
+        print("final answer: pos")
+    else:
+        print("final anwer: pos")
+if positive_count == negative_count:
+    if "ไม่" and "ชอบ" in text:
+        print("final answer: neg")
+    elif "ไม่" and "สะดวก" in text:
+        print("final answer: neg")
+    elif 'ไม่' and 'สามารถ' in text:
+        print("final answer: neg")
+    else:
+        print("final answer: pos")
+
+
