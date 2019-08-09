@@ -119,7 +119,7 @@ import time
 from sklearn import svm
 from sklearn.metrics import classification_report
 # Perform classification with SVM, kernel=linear
-classifier_linear = svm.SVC(kernel='poly', gamma=10, C=100, degree=1)
+classifier_linear = svm.SVC(kernel='linear')
 t0 = time.time()
 classifier_linear.fit(train_vectors, Y_train)
 t1 = time.time()
