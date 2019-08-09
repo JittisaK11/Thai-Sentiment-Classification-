@@ -1,0 +1,388 @@
+import re
+from pandas import DataFrame
+import pandas as pd
+import csv
+import os
+import numpy as np
+from pythainlp import word_tokenize
+import collections
+
+np.random.seed(500)
+
+os.chdir("/Users/14829/Desktop")
+
+df = pd.read_csv('Data1.csv', sep=',') 
+df2 = pd.read_csv('Data2.csv', sep=',')
+df3 = pd.read_csv('Data3.csv', sep=',')
+df4 = pd.read_csv('Data4.csv', sep=',')
+
+pd.DataFrame(df)
+pd.DataFrame(df2)
+pd.DataFrame(df3)
+pd.DataFrame(df4)
+
+
+all_df = pd.concat([df4,df3,df2,df], ignore_index=True)
+
+update_messages = []
+for row in all_df.messages:
+    row = row.replace(" ", "")
+    update_messages.append(row)
+all_df.drop('messages', axis=1)
+all_df['messages'] = update_messages
+
+all_df['labels'] = all_df['labels'].map({'Pos':1,'pos': 1, 'neg':0 })
+
+X_train = all_df.loc[:3000,'messages'].values
+X_test = all_df.loc[3001:, 'messages'].values
+Y_train = all_df.loc[:3000, 'labels'].values
+Y_test = all_df.loc[3001:,'labels'].values
+
+tokenized_train = [list(word_tokenize(sentence,engine='newmm')) for sentence in X_train] 
+tokenized_test = [list(word_tokenize(sentence,engine='newmm')) for sentence in X_test]   
+
+
+# using reviews from online
+long_document = ["ผู้ใช้สามารถนำบัตรมาซื้อ สินค้าและบริการได้ตามวงเงินที่ธนาคารอนุมัติ หลังจากผู้รับบริการได้ บัตรเครดิตแล้ว ผู้ขายหรือผู้ให้บริการจะต้องเช็คยอดที่จ่ายกับทางธนาคารก่อนและจะได้รับรหัสอนุมัติจากธนาคาร ในสมัยก่อนจะเป็นเครื่องรูดบัตร ร้านค้าต้องโทรศัพท์ไปที่ธนาคาร แต่ปัจจุบันนี้มีเครื่องรูดบัตรที่จะออนไลน์กับธนาคารเพื่อให้ได้รหัสอนุมัติได้ในทันที จากผู้ขายหรือผู้ให้บริการก็จะนำสลิปไปให้เจ้าของบัตรเซ็นชื่อ เพื่อตรวจสอบว่าเป็นเจ้าของบัตรจริงหรือไม่ โดยเทียบกับลายเซนต์ที่เซนต์ไว้ด้านหลังของบัตรเครดิต และเก็บสำเนาไว้เพื่อส่งให้ธนาคารตรวจสอบได้ในภายหลัง ปัจจุบันบัตรเครดิตนอกจากจะเป็นที่นิยมในการซื้อสินค้าตามราคาทั่วไปแล้ว ยังนิยมมาใช้ในการซื้อขายผ่านอินเทอร์เน็ตอีกด้วย",
+                 "เมื่อมีการซื้อขายสินค้าผ่านบัตรเครดิต ผู้ใช้บัตรเครดิตจะต้องแสดงความสมยอมว่าการซื้อขายนั้นได้เกิดขึ้นจริง ด้วยการเซ็นชื่อในใบเสร็จ หากเป็นการซื้อขายทางอินเทอร์เน็ต ผู้ใช้อาจจะกรอกราย PIN Number และหมายเลขบัตรเครดิต เพื่อเป็นการแสดงความจำนงในการซื้อขาย",
+                 "การชำระเงินคืนบัตรเครดิต เมื่อได้รับใบเรียกเก็บเงินจากบริษัทบัตรเครดิตหรือธนาคารผู้ออกบัตรแล้ว สามารถเลือกชำระได้สองวิธี คือ การชำระเต็มจำนวนภายในระยะเวลาปลอดดอกเบี้ยส่วนใหญ่วัน แล้วแต่บริษัทหรือสถาบันการเงินที่ออกบัตร) อีกวิธีหนึ่งคือการชำระเงินขั้นต่ำบางส่วน ส่วนใหญ่ของยอดที่ใช้โดยยอดค้างชำระของบัตรเครดิตจะกลายเป็นเงินกู้ที่เราจะต้องทำการผ่อนชำระเป็นงวดๆ",
+                 "ขณะนี้ได้มีบัตรเครดิตแบบใหม่ ที่จะใช้ทาบกับเครื่องอ่าน โดยอาศัยหลักการของคลื่นวิทยุ จึงไม่ต้องมีการนำแถบแม่เหล็กไปสัมผัสกับเครื่องอย่างระบบเก่า ทำให้เพิ่มความรวดเร็วในการทำรายการ และเหมาะกับการชำระเงินจำนวนน้อยๆ","ปัจจุบันนี้ คณะกรรมการว่าด้วยสัญญาสำนักงานคุ้มครองผู้บริโภคได้ประกาศให้บัตรเครดิตมีความหมายรวมถึงบัตรเดบิตด้วยเช่นกัน ทางสำนักงานคณะกรรมการคุ้มครองผู้บริโภค หรือ สคบ ได้ให้ความหมายบัตรเครดิตไว้ว่า เป็นบัตรที่ผู้ประกอบธุรกิจออกให้แก่ผู้บริโภค ตามหลักเกณฑ์ค่าบริการ หรือค่าอื่นใด และวิธีการผู้ประกอบธุรกิจกำหนดเพื่อใช้ชำระค่าสินค้าแทนการชำระด้วยเงินสด หรือเพื่อใช้เบิกถอนเงินสด แต่ไม่รวมถึงบัตรที่มีการชำระค่าสินค้า ค่าบริการไว้ล่วงหน้าแล้ว","แต่สิ่งที่ส่งมาให้เรา กลับไม่มีเราซื้อสินค้ากับคุณก็บ่อยนะ ทั้งโต๊ะทำงาน เก้าอี้สำนักงาน กระเป๋าโน๊ตบุ๊ค กล่องใส่เอกสาร ชั้นวางของ สิ้นค้าทั้งหมดที่เราซื้อ มีอยู่ชิ้นเดียวที่เราพอรับได้และตรงตามรูปภาพที่ลงขาย นอกนั้น ไม่เหมือนกับภาพที่ลงขายเลย แต่เราก็ไม่เคยคืนสินค้านะ เพราะมันเสียเวลา กว่าจะมารับสินค้า กว่าจะส่งมาใหม่ บอกเลยซื้อครั้งนี้ ครั้งสุดท้าย และจะไม่ขอยุ่งเกี่ยวอีก จะบอกญาติๆ และบอกคนรู้จัก ว่าอย่าซื้อของ",
+                 "ตลอด 24 ชั่วโมงของการเข้าพักที่นี่ เรียกว่าเก็บทุกเม็ดทุกหน่วยมาก มาเชคอินตั้งแต่เที่ยงซึ่งห้องก็พร้อมเชคอินให้แล้ว คราวนี้ก็ได้ ห้อง อย่างที่ชอบเหมือนเคย แถมยังเป็นห้อง ที่มีด้วย มื้อเที่ยงพอดีซื้อดีล ไว้กับบุฟอาหารทะเลวันเสาร์ที่คุ้มค่าสุด เลยจัดลอบสเตอร์ไปซะหลายตัวเลย หลังจากมื้อเที่ยงก็ไปนอนย่อยที่ห้อง ก่อนลงมาจัดกันต่อ ที่นี่เริ่ม ซึ่งไวกว่าที่อื่นไปนิดแต่เราว่าโอเค เพราะบางครั้งกว่าจะดื่มเสรจทุ่มกว่าๆมันก็ค่ำไปนิดนึง นี่คือช่วงเวลาที่รอคอย จัดหนักเลยครัช เริ่มด้วยโรเซ่ล้างปากแก้วนึงต่อด้วย คอกเทลอีกนับไม่ถ้วน ซึ่งเป็นคอกเทลสูตรซิกเนเจอร์ของคลับที่นี่เลย นอกจากนี้พนักงานยังมาสามารถชงพวกคอกเทลคลาสสิคให้เราจัดได้ด้วย อาหารให้ทานคู่กันก็มีเยอะพอสมควรเลย เรียกว่ากินเอาอิ่มได้เลย วิวที่นี่ก็ดีสามารถชมพระอาทิตย์ช่วงเย็นๆได้ด้วย เราเลยเลือกที่นั่งริมหน้าต่าง จิบไปชมวิวไป ฟินเวอร์ หลังจากอิ่มเอมจากเครื่องดื่มสุดโปรด ก็กลับห้องไปแช่น้ำ หลังอาบน้ำเสร็จภาพก็ตัด!! เพราะน้องๆคอกเทลเริ่มแผลงฤทธิ์",
+                 "หลับสบายจนถึงเช้าเลย เพราะเตียงที่นี่ขึ้นชื่อเรื่องความสบายอยู่แล้ว ตื่นเช้าก็ออกมายืดเส้นยืดสาย วิ่งรอบสวนลุมสองรอบก่อนกลับโรงแรมมาจัดมื้อเช้าที่ ซึ่งอาหารที่นี่จะค่อนข้างพรีเมียมกว่าข้างล่างแต่ตัวเลือกอาจจะน้อยกว่า แต่เอาจริงๆแล้ว แค่ที่เค้ามีก็กินไม่หมดละจ้า สั่งไปสามอย่าง อิ่มแทบกลิ้ง หมดกัน ที่วิ่งมาตอนเช้า","สุดท้ายนี้ต้องขอขอบคุณพนักงานที่ทุกที่ดูแลเป็นอย่างดี และต้องขอขอบคุณเป็นพิเศษสำหรับ สำหรับการชี้เป้าโปรโมชั่นงามๆ สำหรับการจัดห้องพักงามๆให้ สำหรับการดูแลที่ดีตลอดมา ไว้กลับมาอีกแน่นอนค้าบ อ่านต่อได้ที่","เป็นหนึ่งโรงแรมสุดโปรดของผม ที่ผมเข้าพักบ่อยที่สุดใน กทม แล้ว ด้วยติดใจในความหรูหรา พร้อมกับดีไซน์สวยๆที่ใส่ใจในทุกรายละเอียดการตกแต่ง อาหารอร่อย แถมบริการก็ดีเยี่ยม จึงไม่แปลกใจเลยว่า ที่นี่จะเป็นหนึ่งในดวงใจของผมตลอดมา อ่านต่อได้ที่","พนักงานน่ากลัว เข้าไปแล้วรู้สึกอึดอัดเล็กน้อย เหมือนว่าถ้าแต่งตัวไม่ดีเขาจะบริการเราไม่ดีเวลาเข้าไปรู้สึกได้รับบริการไม่ค่อยดี น้ำเสียงพนักงานไม่ค่อยดีเหมือนไม่ค่อยอยากบริการเราเหมือนว่าตัดสินลูกค้าจากการแต่งกาย","ร้านก๋วยเตี๋ยวเป็ดพะโล้ แถวพุทธบูชา ไม่แนะนำเลยจริงๆในอดีตเคยมาทานก๋วยเตี๋ยวเป็ดพะโล้ร้านนี้หลายครั้งแล้ว รู้สึกว่าพอทานได้ วันนี้ผ่านเลยตั้งใจว่าจะรีวิวสักหน่อยพอดีไม่ชอบทานเป็ด จึงสั่งเกาเหลาเครื่องในและเลือดเป็ดมาทาน พอเขามาเสริฟ เห็นแล้วตกใจ ทำไมปริมาณเยอะเหลือเกิน เหลือบไปดูป้ายราคาเกาเหลาบาท เลยเข้าใจได้สมเหตุสมผลรสชาดน้ำซุปพะโล้ก็อร่อยพอใช้ ไม่เข้มข้นเกินไป ไม่จืดเกินไป แต่พูดถึงเครื่องในนี่สิ ค่อนข้างแข็งและส่วนที่เหนียวก็เหนียวเหลือเกิน เคี้ยวยาก แต่ร้านนี้ไม่มีใส้เป็ดนะ ส่วนเลือดก็ธรรมดา ไม่แข็งไม่นิ่ม ไม่มีอะไรโดดเด่น",
+                 "ไปพักโรงแรมนี้กับทัวร์ช่วงเดือนนี้ ขอแนะนำให้หลีกเลี่ยงที่นี่เข้าไว้ บริการแย่มาก ๆ ตอนที่กลุ่มทัวร์เรากำลังเช็คเอาท์พนักงานก็ลงมาบอกว่ามีผ้าเช็ดตัวหายหนึ่งผืนและก็จะปรับเรา พาถามกันไป ๆ มา ๆ ว่าใครลืมรึเปล่าก็มีเด็กคนนึงบอกว่าเค้าไปอาบน้ำในห้องแม่แล้วคงทิ้งผ้าเช็ดตัวไว้ที่นั่น พอเราบอกพนักงานเค้าก็ขึ้นไปเช็กดู แหงอยู่แล้วว่าต้องเห็นตั้งแต่แรกว่ามีอยู่หนึ่งห้องที่มีผ้าเช็ดตัวสามผืน จะหาเรื่องปรับเราซะงั้น พอพลาดปรับเราไม่ได้ก็ยัง",
+                 "พยายามต่ออีก มาบอกเราว่ามีผ้าเช็ดตัวผืนaนึงสกปรกมาก ๆ จะปรับเรา เราก็งงมาก ๆ ถามไปว่ามันเป็นปัญหายังไง เดี๋ยวก็ต้องซักอยู่แล้ว พนักงานก็ยังยืนยันว่าสกปรกมาก ๆ และก็เสียหายด้วย เราก็เลยขอดูสภาพไอ้ผ้าเช็ดตัวที่ว่านี่หน่อย พอเอาลงมาให้เราดูก็เห็นแค่จุดดำ ๆ เล็ก ๆ เปื้อนอยู่ คงมาจากที่แต่งหน้า เราก็บอกเค้าว่ามีแค่รอยเปื้อนนิดเดียวจากเครื่องแต่งแหน้า ถ้าซักก็หมดแล้ว แต่ก็ยังยืนยันจะปรับเรา 300 บาทให้ได้ ไกด์ทัวร์เราก็บอกว่าพอเราเช็คอินให้ตรวจดูให้ดีว่าเครื่องใช้ไฟฟ้าอุปกรณ์ทั้งหลายในห้องใช้งานได้ดี มีผ้าเช็ดตัวครบสองผืนและก็ไม่มีอะไรเสียในห้องขอแนะนำเลยว่าอย่าได้มาพักที่นี่เด็ดขาด ไม่คุ้มปัญหาที่จะต้องเจอเลยแม้แต่น้อย",
+                 "ร้านอาหารที่ห่วยที่สุดที่เคยกินมาและเสียดายเงินที่สุด",
+                 "เมื่อวานตอนเย็นตั้งใจไปกินพาสต้าและสลัดที่ร้านแห่งหนึ่งที่ซอยรามคำแหง167 ด้วยความหิวโหยทุกคนจึงสั่งพาสต้าคนละจานสามคนพ่อแม่ลูกลูกสาวสั่งพาสต้าคาบอนาร่าส่วนแฟนสั่งลิงกวิเน่ทะเลไวท์ไวน์ซอสและผมก็สั่งสปาเก็ตตี้ไวท์ไวน์ซอสกับเซียร์ทูน่า ของลูกสาวมาก่อนชิมคำแรกวางช้อนเลยบอกของเซเว่นอร่อยกว่ามากแล้วไม่กินอีกเลยเราต้องห่อกลับเพราะเกรงใจพนักงานแล้วเอามาทิ้งที่บ้าน แฟนเราฝืนกินเพราะเสียดายเงินจานละเกือบสี่ร้อยแต่รสชาติห่วยมากๆแต่ก็ฝืนได้แค่ครึ่งเดียว ส่วนเราเลือกกินทูน่าอย่าง เดียว อยากแนะนำไปทางร้านถ้าเข้ามาอ่าน ว่าถ้าอยากทำอาหารอิตาเลี่ยนก็ควรพยายามทำให้ดีกว่านี้ ถ้ารู้ว่าทำไม่เป็นควรศึกษาเพิ่มเติมไม่ใช่มามั่วเอาแบบนี้ ผมตระเวนกินพาสต้ามาเกือบทั่ว กทมแล้ว ไม่เคยเจอที่ใหนรสชาติห่วยขนาดนี้ เสียชื่ออาหารอิตาเลี่ยนหมดเลย และไม่เคยรู้สึกเสียดายเงินขนาดนี้มาก่อนเลย ใครที่เคยไปกินร้านนี้แล้วมาบอกว่าอร่อยแสดงไม่เคยกินพาสต้าสไตล์อิตาเลี่ยนที่แท้จริงเลย"]
+long_doc = []
+for sentence in long_document:
+    sentence = sentence.replace(" ", "")
+    long_doc.append(sentence)
+print(long_doc)
+tokens_long_document = [list(word_tokenize(paragraph,engine='newmm')) for paragraph in long_doc] 
+
+
+unique_words_longdoc = []
+for paragraph in tokens_long_document:
+    for word in paragraph:
+        if word not in unique_words_longdoc:
+            unique_words_longdoc.append(word)
+print(len(unique_words_longdoc))
+
+#----------------------------------------------------------------------------------------------------------------------
+def convert(s):  
+    # initialization of string to "" 
+    new = "" 
+    # traverse in the string  
+    for x in s: 
+        new += x  
+  
+    # return string  
+    return new
+
+positive = pd.read_csv('positive_words.csv', sep=',') 
+negative = pd.read_csv('negative_words.csv', sep=',') 
+swear = pd.read_csv('swear_words.csv', sep=',')
+
+positive = positive.rename(columns={'กตเวที':'words', 'Unnamed: 1':'NAs'})
+positive_list = []
+for word in positive['words']:
+    positive_list.append(word)
+
+my_pos_list = ["ขอบคุณ","ขอบคุณมาก","สวัสดี"]
+for word in my_pos_list:
+    positive_list.append(word)
+    
+negative = negative.rename(columns={'กระจุกกระจิก':'words', 'Unnamed: 1':'NAs'})  
+negative_list = []
+for word in negative['words']:
+    negative_list.append(word)
+    
+my_neg_list = ["คะแนนสะสมหาย","ไม่กินแล้วเบื่อขี้หน้าด้วย","ห่วย","โปรด","เบื่อ","หลอก","ขี้หน้า","ยัง","ไม่","ไม่ชอบ","ทำไม","นาน","หาย","หัก","พนักงาน","ไม่ได้","เมื่อ","แต่","แย้","หมดอายุ","ไม่มีฐาน","ยาก","เมื่อไหร่ จะรู้จักพัฒนาคุณภาพ และตรวสอบความถูกต้องของสินค้า ก่อนทำการส่งมาให้ลูกค้าคะถามจริง ทำงานกันบ้างปะ เคยตรวจสอบความถูกต้องก่อนส่งให้ลูกค้าบ้างรึป่าวทำงานกันอย่างงี้ไง คนถึงได้ด่าแต่เคยรู้บ้างไหมว่าของที่คุณส่งมามันห่วยขนาดไหนไม่เหมือนในภาพที่ลงขาย ถึงเหมือนก็ใช้งานไม่ได้ แถมไม่มีคู่มือให้อีก ไม่มีคู่มือยังไม่พอสินค้าที่เป็นโต๊ะสำนักงานแล้วนำมาประกอบเอง ดันไม่ให้ไขควงมาอีก ถามจริง คุณจะให้ลูกค้าใช้ลิ้นปั่นเองหร่อเจาะรูที่เอาไว้ใส่น๊อต ก็เจาะไม่ตรง บางรูไม่เจาะมาด้วยซ้ำ ดีจังให้ลูกค้ามาเจาะ และมโนไปเองว่ารูมันต้องมีที่ตำแหน่งไหนแย่มากผิดหวังสุดๆ"]
+for word in my_neg_list:
+    negative_list.append(word)
+    
+    
+swear = swear.rename(columns={'เหี้ย':'words', 'Unnamed: 1':'NAs'})
+swear_list = []
+for word in swear['words']:
+    swear_list.append(word)
+    
+for word in swear_list:
+    negative_list.append(word)
+
+positives = convert(positive_list)
+negatives = convert(negative_list)
+
+
+positives = [list(word_tokenize(positives,engine='newmm'))] 
+
+negatives = [list(word_tokenize(negatives,engine='newmm'))] 
+
+
+from pythainlp.corpus import stopwords
+#stopwords = stopwords.words('thai')
+#stopwords = convert(stopwords)
+#stopword = [list(word_tokenize(stopwords,engine='newmm'))]
+
+#tokens_long_doc = [w for w in tokens_long_document if not w in stopwords]
+
+final_list = positives+negatives+tokens_long_document+tokenized_train
+
+
+#all_samples = [w for w in final_list if not w in stopwords]
+unique_words = []
+for part in final_list:
+    for word in part:
+        if word not in unique_words:
+            unique_words.append(word)
+for sentence in tokenized_train:
+    for word in sentence:
+        if word not in unique_words:
+            unique_words.append(word)
+for sentence in tokenized_test:
+    for word in sentence:
+        if word not in unique_words:
+            unique_words.append(word)
+            
+print(len(unique_words))
+
+
+words = []
+for sentence in tokenized_train:
+    for word in sentence:
+        words.append(word)
+for sentence in tokenized_test:
+    for word in sentence:
+        words.append(word)
+for sentence in final_list:
+    for word in sentence:
+        words.append(word)
+        
+total_words = len(words)
+
+count_words = collections.Counter(words)
+
+# gets frequency of words
+sorted_words = count_words.most_common(total_words)
+
+vocab_to_int = {w:i for i, (w,c) in enumerate(sorted_words)}
+print(len(vocab_to_int))
+
+
+from gensim.models import Word2Vec 
+
+num_features = 300  # Word vector dimensionality
+min_word_count = 2 # Minimum word count
+num_workers = 1     # Number of parallel threads
+context = 4        # Context window size
+downsampling = 1e-3 # (0.001) Downsample setting for frequent words
+
+# Initializing the train model
+from gensim.models import word2vec
+print("Training model....")
+model = word2vec.Word2Vec(final_list,\
+                          workers=num_workers,\
+                          size=num_features,\
+                          min_count=min_word_count,\
+                          window=context,
+                          sample=downsampling)
+
+# To make the model memory efficient
+model.init_sims(replace=True)
+
+# Saving the model for later use. Can be loaded using Word2Vec.load()
+file_name = "3098_embeddings_word2vec.txt"
+model.wv.save_word2vec_format(file_name, binary=False)
+print(model)
+
+
+words = list(model.wv.vocab)
+print("vocabulary size:", len(words))
+
+
+model.wv.most_similar("อยาก")
+
+
+import os
+
+embeddings_index = {}
+f = open(os.path.join('','3098_embeddings_word2vec.txt'), encoding = "utf-8")
+words_in_embedding = []
+coefi = []
+for line in f:
+    values = line.split()
+    if len(values) > 0:
+        word = values[0]
+        words_in_embedding.append(word)
+        coefs = np.asarray(values[1:])
+        coefi.append(coefs)
+        embeddings_index[word] = coefs
+f.close()
+
+print(len(embeddings_index))
+
+for value in coefi:
+    print(len(value))
+
+#print(embeddings_index['ค่ะ'])
+
+
+reviews_int = []
+for review in tokenized_train:
+    r = [vocab_to_int[w] for w in review]
+    reviews_int.append(r)
+
+reviews_len = []
+for review in tokenized_train:
+    lenr = len(review)
+    reviews_len.append(lenr)
+
+reviews_int = [reviews_int[i] for i, l in enumerate(reviews_len) if l>-1 ]
+
+seq_length = 40
+def pad_features(reviews_int, seq_length):
+    features = np.zeros((len(reviews_int), seq_length), dtype = int)
+    
+    for i, review in enumerate(reviews_int):
+        reviews_len = len(review)
+        if reviews_len <= seq_length:
+            zeroes = list(np.zeros(seq_length-reviews_len))
+            new = zeroes+review
+        elif reviews_len > seq_length:
+            new = review[0:seq_length]
+        
+        features[i,:] = np.array(new)
+    return(features)
+
+train_vectors = pad_features(reviews_int,seq_length)
+
+print(Y_train.shape)
+#print(train_vectors)
+#print(vocab_to_int)
+
+
+reviews_int_test = []
+for review in tokenized_test:
+    r = [vocab_to_int[w] for w in review]
+    reviews_int_test.append(r)
+
+reviews_len_test = []
+for review in tokenized_test:
+    lenr = len(review)
+    reviews_len_test.append(lenr)
+
+reviews_int_test = [reviews_int_test[i] for i, l in enumerate(reviews_len_test) if l>0 ]
+seq_length = 40
+def pad_features(reviews_int_test, seq_length):
+    features = np.zeros((len(reviews_int_test), seq_length), dtype = int)
+    
+    for i, review in enumerate(reviews_int_test):
+        reviews_len_test = len(review)
+        if reviews_len_test <= seq_length:
+            zeroes = list(np.zeros(seq_length-reviews_len_test))
+            new = zeroes+review
+        elif reviews_len_test > seq_length:
+            new = review[0:seq_length]
+        
+        features[i,:] = np.array(new)
+    return(features)
+test_vectors = pad_features(reviews_int_test,seq_length)
+print(test_vectors.shape)
+print(Y_test.shape)
+#print(train_vectors)
+#print(vocab_to_int)
+
+
+num_words = (len(vocab_to_int) + 1)
+
+EMBEDDING_DIM=300
+
+embedding_matrix = np.zeros((num_words, EMBEDDING_DIM))
+
+for word, i in vocab_to_int.items():
+    if i <= num_words:
+        embedding_vector = vocab_to_int.get(word)
+        if embedding_vector is not None:
+            embedding_matrix[i] = embedding_vector
+
+        
+print(num_words)
+print(embedding_matrix.shape)
+
+sentiment = all_df['labels'].values
+print(Y_test.shape)
+
+
+from keras.models import Sequential
+from keras.layers import Dense, Embedding, LSTM, GRU
+from keras.layers.embeddings import Embedding
+from keras.initializers import Constant
+
+model = Sequential()
+embedding_layer = Embedding(num_words,EMBEDDING_DIM,embeddings_initializer=Constant(embedding_matrix),
+                            input_length=40,trainable=False)
+
+model.add(embedding_layer)
+model.add(GRU(units=32,dropout=0.2,recurrent_dropout=0.2))
+
+model.add(Dense(1, activation='sigmoid'))
+
+model.compile(loss='binary_crossentropy',optimizer='adam',metrics=['accuracy'])
+
+
+
+VALIDATION_SPLIT = 0.2
+
+indices=np.arange(train_vectors.shape[0])
+np.random.shuffle(indices)
+train_vectors=train_vectors[indices]
+sentiment=sentiment[indices]
+num_validation_samples=int(VALIDATION_SPLIT*train_vectors.shape[0])
+
+print(train_vectors.shape[0])
+
+X_train_pad = train_vectors[:-num_validation_samples]
+Y_train = sentiment[:-num_validation_samples]
+X_test_pad = test_vectors[-num_validation_samples:]
+Y_test = Y_test
+
+
+print("Training model... ")
+
+model.fit(X_train_pad,Y_train,batch_size=100,epochs=25,validation_data=(X_test_pad,Y_test),verbose=2)
+
+
+output = model.predict(x=X_test_pad)
+output = DataFrame(output)
+
+
+output['messages'] = all_df.loc[3001:, 'messages'].values
+
+output = output.rename(columns={0:'predictions'})
+
+
+labellings = []
+for value in output.predictions:
+    if value < 0.80:
+        labellings.append("neg")
+    else:
+        labellings.append("pos")
+output['final_predictions'] = labellings 
+output['actual'] = all_df.loc[3001:, 'labels'].values
+output['actual'] = output['actual'].map({1:'pos', 0:'neg'})
+print(output)
+
+
+count = 0
+for index, row in output.iterrows():
+    v1 = row['actual']
+    v2 = row['final_predictions']
+    if v1 != v2:
+        count += 1
+print(count)
+print("accuracy is:", ((302-count)/302)) 
+
+
+
+
+   
