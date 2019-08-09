@@ -1,0 +1,149 @@
+import re
+from pandas import DataFrame
+import pandas as pd
+import csv
+import os
+import numpy as np
+from pythainlp import word_tokenize
+import collections
+
+np.random.seed(500)
+
+os.chdir("/Users/14829/Desktop")
+
+df = pd.read_csv('Data1.csv', sep=',') 
+df2 = pd.read_csv('Data2.csv', sep=',')
+df3 = pd.read_csv('Data3.csv', sep=',')
+df4 = pd.read_csv('Data4.csv', sep=',')
+
+pd.DataFrame(df)
+pd.DataFrame(df2)
+pd.DataFrame(df3)
+pd.DataFrame(df4)
+
+all_df = pd.concat([df4,df3,df2,df], ignore_index=True)
+
+
+
+
+X_train = all_df.loc[:3000,'messages'].values
+X_test = all_df.loc[3301:, 'messages'].values
+Y_train = all_df.loc[:3000, 'labels'].values
+Y_test = all_df.loc[3301:,'labels'].values
+
+tokenized_train = [list(word_tokenize(sentence,engine='newmm')) for sentence in X_train] 
+tokenized_test = [list(word_tokenize(sentence,engine='newmm')) for sentence in X_test]   
+
+words = []
+for sentence in tokenized_train:
+    for word in sentence:
+        words.append(word)
+for sentence in tokenized_test:
+    for word in sentence:
+        words.append(word)
+        
+total_words = len(words)
+
+count_words = collections.Counter(words)
+
+# gets frequency of words
+sorted_words = count_words.most_common(total_words)
+
+vocab_to_int = {w:i for i, (w,c) in enumerate(sorted_words)}
+
+all_df
+
+
+reviews_int = []
+for review in tokenized_train:
+    r = [vocab_to_int[w] for w in review]
+    reviews_int.append(r)
+
+reviews_len = []
+for review in tokenized_train:
+    lenr = len(review)
+    reviews_len.append(lenr)
+
+reviews_int = [reviews_int[i] for i, l in enumerate(reviews_len) if l>0 ]
+seq_length = 20
+def pad_features(reviews_int, seq_length):
+    features = np.zeros((len(reviews_int), seq_length), dtype = int)
+    
+    for i, review in enumerate(reviews_int):
+        reviews_len = len(review)
+        if reviews_len <= seq_length:
+            zeroes = list(np.zeros(seq_length-reviews_len))
+            new = zeroes+review
+        elif reviews_len > seq_length:
+            new = review[0:seq_length]
+        
+        features[i,:] = np.array(new)
+    return(features)
+train_vectors = pad_features(reviews_int,seq_length)
+
+reviews_int = []
+for review in tokenized_test:
+    r = [vocab_to_int[w] for w in review]
+    reviews_int.append(r)
+
+reviews_len = []
+for review in tokenized_test:
+    lenr = len(review)
+    reviews_len.append(lenr)
+
+reviews_int = [reviews_int[i] for i, l in enumerate(reviews_len) if l>0 ]
+seq_length = 20
+def pad_features(reviews_int, seq_length):
+    features = np.zeros((len(reviews_int), seq_length), dtype = int)
+    
+    for i, review in enumerate(reviews_int):
+        reviews_len = len(review)
+        if reviews_len <= seq_length:
+            zeroes = list(np.zeros(seq_length-reviews_len))
+            new = zeroes+review
+        elif reviews_len > seq_length:
+            new = review[0:seq_length]
+        
+        features[i,:] = np.array(new)
+    return(features)
+test_vectors = pad_features(reviews_int,seq_length)
+print(test_vectors)
+
+number_words = []
+for sentence in tokenized_train:
+    for word in sentence:
+        number_words.append(word)
+vocab_size = len(number_words)
+
+import time   
+from sklearn import svm
+from sklearn.metrics import classification_report
+# Perform classification with SVM, kernel=linear
+classifier_linear = svm.SVC(kernel='poly', gamma=10, C=100, degree=1)
+t0 = time.time()
+classifier_linear.fit(train_vectors, Y_train)
+t1 = time.time()
+prediction_linear = classifier_linear.predict(test_vectors)
+t2 = time.time()
+time_linear_train = t1-t0
+time_linear_predict = t2-t1
+
+# results
+print("Training time: %fs; Prediction time: %fs" % (time_linear_train, time_linear_predict))
+
+final_df = DataFrame(X_test)
+
+final_df['predictions'] = DataFrame(prediction_linear)
+final_df['actual'] = DataFrame(Y_test)
+final_df
+
+
+count = 0
+for index, row in final_df.iterrows():
+    v1 = row['actual']
+    v2 = row['predictions']
+    if v1 != v2:
+        count += 1
+print(count)
+print("accuracy is:", ((330-count)/330)) 
+
